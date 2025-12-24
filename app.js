@@ -1,4 +1,4 @@
-const FACT_API_URL = 'https://uselessfacts.jsph.pl/random.json?language=en';
+const FACT_API_URL = 'https://uselessfacts.jsph.pl/api/v2/facts/random?language=en';
 
 // Limit Configuration
 const DAILY_LIMIT = 10;
@@ -13,15 +13,30 @@ const elements = {
     loader: document.getElementById('loader'),
 };
 
+function timeoutPromise(ms, promise, errorMessage = 'Operation timed out') {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(errorMessage)), ms);
+        promise
+            .then(value => {
+                clearTimeout(timer);
+                resolve(value);
+            })
+            .catch(reason => {
+                clearTimeout(timer);
+                reject(reason);
+            });
+    });
+}
+
 async function fetchFact() {
     try {
         const response = await fetch(FACT_API_URL);
-        if (!response.ok) throw new Error('API Error');
+        if (!response.ok) throw new Error(`API Error: ${response.status}`);
         const data = await response.json();
         return data.text;
     } catch (error) {
         console.error('Error fetching fact:', error);
-        return 'Did you know? Sometimes the internet breaks. Try again!';
+        throw error; // Propagate error to handle it in main function
     }
 }
 
@@ -55,7 +70,7 @@ function loadImage(url) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve(url);
-        img.onerror = reject;
+        img.onerror = () => reject(new Error('Image failed to load'));
         img.src = url;
     });
 }
@@ -127,17 +142,13 @@ async function handleLoadNewFact() {
     setLoading(true);
 
     try {
-        // Step 1: Fetch content and image
-        // To be efficient, we fetch fact first, then translate, 
-        // while image matches loosely or random.
-
-        // Actually, let's fetch fact and image in parallel, then translate facts.
-        const [fact, imageUrl] = await Promise.all([
+        // Enforce 10s timeout for the entire operation
+        const [fact, imageUrl] = await timeoutPromise(10000, Promise.all([
             fetchFact(),
             loadImage(getPicsumUrl())
-        ]);
+        ]));
 
-        // Step 2: Translate
+        // Translation (optional, non-blocking)
         let translation = '';
         if (fact) {
             translation = await translateText(fact);
@@ -166,6 +177,7 @@ async function handleLoadNewFact() {
 
             incrementCount();
 
+            // Optional check
             if (!checkLimit()) {
                 // Limit reached
             }
@@ -173,16 +185,23 @@ async function handleLoadNewFact() {
         }, 300);
 
     } catch (error) {
-        console.error("Error loading content", error);
-        elements.factContainer.textContent = "Oops! Something went wrong.";
-        if (elements.factTranslation) elements.factTranslation.textContent = "¡Ups! Algo salió mal.";
+        console.error("Critical Error", error);
+
+        // Fallback content if API fails drastically
+        const safeFact = "Did you know? The internet is acting up properly.";
+        const safeTrans = "Algo falló con la conexión. Intenta de nuevo.";
+
+        elements.factContainer.textContent = safeFact;
+        if (elements.factTranslation) elements.factTranslation.textContent = safeTrans;
 
         elements.factContainer.classList.remove('fade-out');
         elements.factContainer.classList.add('fade-in');
+
         if (elements.factTranslation) {
             elements.factTranslation.classList.remove('fade-out');
             elements.factTranslation.classList.add('fade-in');
         }
+
     } finally {
         setLoading(false);
     }
