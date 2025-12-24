@@ -7,6 +7,7 @@ const DATE_KEY = 'useless_facts_last_visit';
 
 const elements = {
     factContainer: document.getElementById('fact-container'),
+    factTranslation: document.getElementById('fact-translation'),
     bgImage: document.getElementById('background-image'),
     newFactBtn: document.getElementById('new-fact-btn'),
     loader: document.getElementById('loader'),
@@ -21,6 +22,25 @@ async function fetchFact() {
     } catch (error) {
         console.error('Error fetching fact:', error);
         return 'Did you know? Sometimes the internet breaks. Try again!';
+    }
+}
+
+async function translateText(text) {
+    try {
+        // Unofficial Google Translate API (client=gtx)
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=es&dt=t&q=${encodeURIComponent(text)}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Translation failed');
+        const data = await response.json();
+        // Structure: [[["Translated Text", "Original", ...], ...], ...]
+        // Sometimes valid text is split into multiple chunks in the first array
+        if (data && data[0]) {
+            return data[0].map(item => item[0]).join('');
+        }
+        return '';
+    } catch (error) {
+        console.error('Translation error:', error);
+        return ''; // Return empty string on failure
     }
 }
 
@@ -43,8 +63,12 @@ function loadImage(url) {
 function setLoading(isLoading) {
     if (isLoading) {
         elements.loader.classList.remove('hidden');
-        elements.factContainer.classList.add('fade-out'); // Hide text while loading
+        elements.factContainer.classList.add('fade-out');
         elements.factContainer.classList.remove('fade-in');
+        if (elements.factTranslation) {
+            elements.factTranslation.classList.add('fade-out');
+            elements.factTranslation.classList.remove('fade-in');
+        }
         elements.newFactBtn.disabled = true;
     } else {
         elements.loader.classList.add('hidden');
@@ -77,9 +101,16 @@ function incrementCount() {
 }
 
 function showLimitMessage() {
-    elements.factContainer.textContent = "Vuelve mañana por más data";
+    elements.factContainer.textContent = "Come back tomorrow for more data";
+    if (elements.factTranslation) {
+        elements.factTranslation.textContent = "Vuelve mañana por más data";
+        elements.factTranslation.classList.remove('fade-out');
+        elements.factTranslation.classList.add('fade-in');
+    }
+
     elements.factContainer.classList.remove('fade-out');
     elements.factContainer.classList.add('fade-in');
+
 
     elements.newFactBtn.disabled = true;
     elements.newFactBtn.style.opacity = '0.5';
@@ -96,14 +127,27 @@ async function handleLoadNewFact() {
     setLoading(true);
 
     try {
-        // Parallel fetch for speed
+        // Step 1: Fetch content and image
+        // To be efficient, we fetch fact first, then translate, 
+        // while image matches loosely or random.
+
+        // Actually, let's fetch fact and image in parallel, then translate facts.
         const [fact, imageUrl] = await Promise.all([
             fetchFact(),
-            loadImage(getPicsumUrl()) // Fetch image URL and wait for it to load
+            loadImage(getPicsumUrl())
         ]);
+
+        // Step 2: Translate
+        let translation = '';
+        if (fact) {
+            translation = await translateText(fact);
+        }
 
         // Update Text
         elements.factContainer.textContent = fact;
+        if (elements.factTranslation) {
+            elements.factTranslation.textContent = translation;
+        }
 
         // Update Background
         elements.bgImage.style.opacity = '0';
@@ -115,20 +159,30 @@ async function handleLoadNewFact() {
             // Show text
             elements.factContainer.classList.remove('fade-out');
             elements.factContainer.classList.add('fade-in');
+            if (elements.factTranslation) {
+                elements.factTranslation.classList.remove('fade-out');
+                elements.factTranslation.classList.add('fade-in');
+            }
 
-            // Increment Count only after successful load
             incrementCount();
 
-            // Optional: Check if limit reached to disable immediately?
-            // If we want to be strict, we can check here.
+            if (!checkLimit()) {
+                // Limit reached
+            }
 
-        }, 300); // Short delay to allow opacity to reset
+        }, 300);
 
     } catch (error) {
         console.error("Error loading content", error);
         elements.factContainer.textContent = "Oops! Something went wrong.";
+        if (elements.factTranslation) elements.factTranslation.textContent = "¡Ups! Algo salió mal.";
+
         elements.factContainer.classList.remove('fade-out');
         elements.factContainer.classList.add('fade-in');
+        if (elements.factTranslation) {
+            elements.factTranslation.classList.remove('fade-out');
+            elements.factTranslation.classList.add('fade-in');
+        }
     } finally {
         setLoading(false);
     }
