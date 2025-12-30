@@ -1,16 +1,8 @@
 // --- CONFIGURATION ---
 const APIS = [
     {
-        url: 'https://uselessfacts.jsph.pl/api/v2/facts/random?language=en',
-        parser: (data) => data.text
-    },
-    {
         url: 'https://catfact.ninja/fact',
         parser: (data) => data.fact
-    },
-    {
-        url: 'https://dummyjson.com/quotes/random',
-        parser: (data) => `"${data.quote}" — ${data.author}`
     }
 ];
 
@@ -19,31 +11,29 @@ const TIMEOUT_MS = 8000; // Increased to 8s for retries
 const STORAGE_KEY = 'useless_facts_daily_count';
 const DATE_KEY = 'useless_facts_last_visit';
 
-// --- LOCAL DATA FALLBACK (SPANISH) ---
+// --- LOCAL DATA FALLBACK (SPANISH - CAT EDITION) ---
 // Used if ALL APIs fail
 const LOCAL_FACTS = [
-    "La miel nunca se estropea. Se ha encontrado miel comestible en tumbas egipcias de miles de años.",
-    "Los delfines duermen con un ojo abierto.",
-    "Un día en Venus es más largo que un año en Venus.",
-    "Las nutrias se toman de la mano cuando duermen para no separarse.",
-    "El corazón de un colibrí late hasta 1,200 veces por minuto.",
-    "Las vacas tienen mejores amigas y se estresan cuando las separan.",
-    "Los pulpos tienen tres corazones.",
-    "Es imposible tararear mientras te tapas la nariz.",
-    "Los plátanos son curvos porque crecen hacia el sol.",
-    "El ojo de un avestruz es más grande que su cerebro.",
-    "Júpiter es tan grande que cabrían todos los demás planetas del sistema solar dentro de él.",
-    "Los koalas tienen huellas dactilares muy parecidas a las humanas.",
-    "El agua caliente se congela más rápido que el agua fría (Efecto Mpemba).",
-    "Los flamencos nacen grises, no rosas.",
-    "El unicornio es el animal nacional de Escocia.",
-    "Hay más combinaciones posibles en un juego de ajedrez que átomos en el universo observable.",
-    "Los gatos no tienen papilas gustativas para lo dulce.",
-    "La Gran Muralla China no es visible desde el espacio a simple vista.",
-    "El órgano más grande del cuerpo humano es la piel.",
-    "Los mosquitos tienen 47 dientes.",
-    "Una nube de tipo cúmulo pesa alrededor de 500 toneladas.",
-    "En Júpiter y Saturno llueven diamantes."
+    "Los gatos pasan el 70% de su vida durmiendo.",
+    "Un gato doméstico promedio puede correr a unos 48 km/h.",
+    "Los gatos no pueden saborear cosas dulces.",
+    "El cerebro de un gato es 90% similar al de un ser humano.",
+    "Los gatos pueden hacer más de 100 sonidos vocales diferentes, los perros solo 10.",
+    "Los gatos tienen 32 músculos en cada oreja.",
+    "La nariz de cada gato tiene un patrón único, como la huella dactilar humana.",
+    "Los gatos usan sus bigotes para saber si pueden pasar por un espacio.",
+    "El ronroneo de un gato ocurre a una frecuencia que ayuda a curar huesos y tejidos.",
+    "Los gatos pueden saltar hasta 6 veces su longitud.",
+    "Los antiguos egipcios afeitaban sus cejas en señal de duelo cuando su gato fallecía.",
+    "Un grupo de gatitos se llama 'kindergarten'.",
+    "Los gatos sudan a través de las almohadillas de sus patas.",
+    "El dueño promedio de un gato tiene más educación que el dueño promedio de un perro.",
+    "Los gatos tienen un órgano especial en el paladar (órgano de Jacobson) que les permite 'probar' los olores.",
+    "Isaac Newton inventó la puerta gatera para que su gato no interrumpiera sus experimentos.",
+    "El gato más rico del mundo heredó 13 millones de dólares.",
+    "Los gatos no tienen clavículas, lo que les permite pasar por cualquier abertura del tamaño de su cabeza.",
+    "Los gatos caminan moviendo ambas patas derechas primero y luego ambas patas izquierdas.",
+    "La mayoría de los gatos blancos con ojos azules son sordos."
 ];
 
 const elements = {
@@ -115,9 +105,9 @@ function setLoading(isLoading) {
 }
 
 function showLimitMessage() {
-    elements.factContainer.textContent = "Come back tomorrow for more data";
+    elements.factContainer.textContent = "Vuelve mañana por más datos gatunos 🐱";
     if (elements.factTranslation) {
-        elements.factTranslation.textContent = "Vuelve mañana por más data";
+        elements.factTranslation.textContent = "Come back tomorrow for more cat facts 🐱";
         elements.factTranslation.classList.remove('fade-out');
         elements.factTranslation.classList.add('fade-in');
     }
@@ -131,8 +121,9 @@ function showLimitMessage() {
 }
 
 function getPicsumUrl() {
-    const randomId = Math.floor(Math.random() * 10000);
-    return `https://picsum.photos/1080/1920?random=${randomId}`;
+    // Using loremflickr for better reliability than cataas
+    const randomId = Math.floor(Math.random() * 1000);
+    return `https://loremflickr.com/1080/1920/cat?lock=${randomId}`;
 }
 
 async function translateText(text) {
@@ -175,15 +166,7 @@ async function fetchFactFromAnySource() {
 // --- CORE LOGIC ---
 
 async function handleLoadNewFact() {
-    // 1. Check limit
-    if (!checkLimit()) {
-        showLimitMessage();
-        return;
-    }
-
-    setLoading(true);
-
-    // Start Image Load (Independent)
+    // Start Image Load (Independent and always happens)
     const imgUrl = getPicsumUrl();
     const imageLoadPromise = new Promise((resolve, reject) => {
         const img = new Image();
@@ -191,6 +174,28 @@ async function handleLoadNewFact() {
         img.onerror = () => reject(new Error('Image failed'));
         img.src = imgUrl;
     });
+
+    // Handle Background Update
+    let imageLoaded = false;
+    imageLoadPromise.then(() => {
+        elements.bgImage.style.backgroundImage = `url('${imgUrl}')`;
+        elements.bgImage.style.opacity = '1';
+        imageLoaded = true;
+    }).catch(e => {
+        console.warn("Background image failed to load completely", e);
+        if (!imageLoaded) elements.bgImage.style.opacity = '0.5';
+    });
+
+    // 1. Check limit AFTER starting image load (so we get a nice background even if limited)
+    if (!checkLimit()) {
+        showLimitMessage();
+        return;
+    }
+
+
+    setLoading(true);
+
+    // Image load already started above
 
     // Start Fact Load (Independent)
     let finalOriginalText = "";
@@ -205,7 +210,7 @@ async function handleLoadNewFact() {
         // Step B: Translate
         const translated = await translateText(originalText);
         finalTranslatedText = translated || "Traducción no disponible";
-        
+
         success = true;
 
     } catch (error) {
@@ -223,17 +228,13 @@ async function handleLoadNewFact() {
         elements.factTranslation.textContent = finalTranslatedText;
     }
 
-    // Step D: Handle Background & Reveal
-    // We wait up to 3 seconds for image, otherwise show content anyway.
+    // Step D: We mostly rely on the async image loader set up at the top.
+    // But we might want to wait a tiny bit to sync if it's super fast?
     try {
-        await timeoutPromise(3000, imageLoadPromise);
-        elements.bgImage.style.backgroundImage = `url('${imgUrl}')`;
-        elements.bgImage.style.opacity = '1';
+        await timeoutPromise(1000, imageLoadPromise);
     } catch (e) {
-        console.warn("Background image incorrect or timed out", e);
-        // Even if timed out, if we have a URL we might want to set it?
-        // But for now, just keep default.
-        elements.bgImage.style.opacity = '0.5'; 
+        // Ignored, we just proceed to show text if image takes too long
+        console.log("Image taking longer than 1s, revealing text first.");
     }
 
     // Reveal Content
