@@ -78,7 +78,7 @@ html {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 2rem;
+    padding: 2rem 2rem 8rem 2rem;
     text-align: center;
     flex-direction: column;
     /* Allow stacking */
@@ -161,6 +161,19 @@ html {
 .refresh-btn svg {
     width: 28px;
     height: 28px;
+}
+
+.branding-footer {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    z-index: 3;
+    pointer-events: none;
+    font-family: 'Inter', sans-serif;
 }
 
 /* Responsive Adjustments */

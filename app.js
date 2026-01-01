@@ -223,9 +223,21 @@ async function handleLoadNewFact() {
     }
 
     // Step C: Render Text
-    elements.factContainer.textContent = finalOriginalText;
-    if (elements.factTranslation) {
-        elements.factTranslation.textContent = finalTranslatedText;
+    // PRIMARY (Top/Big) should be SPANISH
+    // SECONDARY (Bottom/Small) should be ENGLISH/ORIGINAL
+
+    if (success) {
+        // API Success: Primary = Translated (Spanish), Secondary = Original (English)
+        elements.factContainer.textContent = finalTranslatedText;
+        if (elements.factTranslation) {
+            elements.factTranslation.textContent = finalOriginalText;
+        }
+    } else {
+        // Fallback: Primary = Local (Spanish), Secondary = Label
+        elements.factContainer.textContent = finalOriginalText; // Local facts are Spanish
+        if (elements.factTranslation) {
+            elements.factTranslation.textContent = "— dato local —";
+        }
     }
 
     // Step D: We mostly rely on the async image loader set up at the top.
